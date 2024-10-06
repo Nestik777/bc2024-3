@@ -1,10 +1,10 @@
-// index.js
+// main.js
 const { program } = require('commander');
-const fs = require('fs-extra');
+const fs = require('fs');
 
 program
   .version('1.0.0')
-  .description('Програма для обробки JSON даних')
+  .description('Програма для обробки JSON даних валют')
   .requiredOption('-i, --input <type>', 'шлях до файлу для читання')
   .option('-o, --output <type>', 'шлях до файлу для запису результату')
   .option('-d, --display', 'вивести результат у консоль')
@@ -19,32 +19,38 @@ if (!options.input) {
   process.exit(1);
 }
 
-// Читання файлу
-fs.readFile(options.input, 'utf8')
-  .then(data => {
-    const jsonData = JSON.parse(data);
+try {
+  // Читання файлу синхронно
+  const data = fs.readFileSync(options.input, 'utf8');
+  const jsonData = JSON.parse(data);
 
-    // Виведення у консоль, якщо вказано параметр -d
+  const outputLines = [];
+
+  // Обробка курсів валют
+  jsonData.forEach(entry => {
+    const date = entry.exchangedate; // Отримання дати обміну
+    const rate = entry.rate; // Отримання курсу валют
+
+    outputLines.push(`${date}:${rate}`); // Форматування рядка у вигляді <дата>:<курс>
+  });
+
+  // Виведення у консоль, якщо вказано параметр -d
+  if (options.display) {
+    outputLines.forEach(line => console.log(line));
+  }
+
+  // Запис у файл, якщо вказано параметр -o
+  if (options.output) {
+    fs.writeFileSync(options.output, outputLines.join('\n'), 'utf8');
     if (options.display) {
-      console.log(jsonData);
-    }
-
-    // Запис у файл, якщо вказано параметр -o
-    if (options.output) {
-      return fs.writeFile(options.output, JSON.stringify(jsonData, null, 2));
-    }
-  })
-  .then(() => {
-    // Якщо задано обидва параметри -o та -d
-    if (options.output && options.display) {
       console.log(`Результат записано у файл: ${options.output}`);
     }
-  })
-  .catch(err => {
-    if (err.code === 'ENOENT') {
-      console.error('Cannot find input file');
-    } else {
-      console.error('Помилка:', err.message);
-    }
-    process.exit(1);
-  });
+  }
+} catch (err) {
+  if (err.code === 'ENOENT') {
+    console.error('Cannot find input file');
+  } else {
+    console.error('Помилка:', err.message);
+  }
+  process.exit(1);
+}
